@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock, List, FileSpreadsheet } from "lucide-react";
+import { Clock, List, FileSpreadsheet, Trash2 } from "lucide-react";
 import { EMPLOYEES, PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
 import * as XLSX from "xlsx";
 
@@ -49,6 +49,8 @@ export default function Home() {
 
   const handlePunch = (type: PunchType) => {
     if (!selectedEmployee || !EMPLOYEES.includes(selectedEmployee as any) || toastMessage) return;
+    if (type === "clock_in" && !canClockIn) return;
+    if (type === "clock_out" && !canClockOut) return;
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -68,6 +70,25 @@ export default function Home() {
   };
 
   const todayPunches = records.filter((r) => r.date === getTodayDateStr());
+  const monthlyPunches = records
+    .filter((r) => r.date >= monthStart && r.date <= monthEnd)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const today = getTodayDateStr();
+  const selectedEmployeeClockInCount = records.filter(
+    (r) => r.date === today && r.employee === selectedEmployee && r.type === "clock_in"
+  ).length;
+  const selectedEmployeeClockOutCount = records.filter(
+    (r) => r.date === today && r.employee === selectedEmployee && r.type === "clock_out"
+  ).length;
+  const canClockIn = selectedEmployeeClockInCount === 0;
+  const canClockOut = selectedEmployeeClockOutCount === 0;
+
+  const handleDelete = (id: string) => {
+    if (!confirm("この打刻を削除しますか？")) return;
+    const next = getRecords().filter((r) => r.id !== id);
+    saveRecords(next);
+    setRecords(next);
+  };
 
   const calcWorkHours = (inTime: string, outTime: string): number => {
     const [inH, inM] = inTime.split(":").map(Number);
@@ -216,26 +237,36 @@ export default function Home() {
               </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Button
-                size="lg"
-                variant="success"
-                onClick={() => handlePunch("clock_in")}
-                disabled={!selectedEmployee || !!toastMessage}
-                className="h-20 text-xl"
-              >
-                <Clock className="w-8 h-8" />
-                出勤
-              </Button>
-              <Button
-                size="lg"
-                variant="destructive"
-                onClick={() => handlePunch("clock_out")}
-                disabled={!selectedEmployee || !!toastMessage}
-                className="h-20 text-xl"
-              >
-                <Clock className="w-8 h-8" />
-                退勤
-              </Button>
+              <div>
+                <Button
+                  size="lg"
+                  variant="success"
+                  onClick={() => handlePunch("clock_in")}
+                  disabled={!selectedEmployee || !!toastMessage || !canClockIn}
+                  className="h-20 text-xl w-full"
+                >
+                  <Clock className="w-8 h-8" />
+                  出勤
+                </Button>
+                {selectedEmployee && !canClockIn && (
+                  <p className="text-sm text-amber-600 mt-1">本日はすでに出勤済みです</p>
+                )}
+              </div>
+              <div>
+                <Button
+                  size="lg"
+                  variant="destructive"
+                  onClick={() => handlePunch("clock_out")}
+                  disabled={!selectedEmployee || !!toastMessage || !canClockOut}
+                  className="h-20 text-xl w-full"
+                >
+                  <Clock className="w-8 h-8" />
+                  退勤
+                </Button>
+                {selectedEmployee && !canClockOut && (
+                  <p className="text-sm text-amber-600 mt-1">本日はすでに退勤済みです</p>
+                )}
+              </div>
             </div>
             <p className="text-sm text-gray-500">
               入り口のiPadまたはスマホで打刻できます。
@@ -275,6 +306,14 @@ export default function Home() {
                         {r.type === "clock_in" ? "出勤" : "退勤"}{" "}
                         {r.timestamp.slice(11, 16)}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(r.id)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   ))}
               </div>
@@ -342,6 +381,44 @@ export default function Home() {
               <FileSpreadsheet className="w-5 h-5 mr-2" />
               Excelで出力
             </Button>
+
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 mb-3">打刻明細</h3>
+              {monthlyPunches.length === 0 ? (
+                <p className="text-gray-500 text-sm">期間内の打刻はありません</p>
+              ) : (
+                <div className="space-y-2">
+                  {monthlyPunches.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
+                    >
+                      <span className="text-sm text-gray-900">
+                        {r.date} {r.employee}
+                      </span>
+                      <span
+                        className={
+                          r.type === "clock_in"
+                            ? "text-green-600 font-semibold text-sm"
+                            : "text-red-600 font-semibold text-sm"
+                        }
+                      >
+                        {r.type === "clock_in" ? "出勤" : "退勤"}{" "}
+                        {r.timestamp.slice(11, 16)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(r.id)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
