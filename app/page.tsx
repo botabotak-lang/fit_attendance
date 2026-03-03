@@ -7,6 +7,7 @@ import { EMPLOYEES, PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
 import * as XLSX from "xlsx";
 
 type Tab = "punch" | "today" | "monthly";
+const TOAST_DURATION_MS = 2500;
 
 function getTodayDateStr() {
   return new Date().toISOString().slice(0, 10);
@@ -26,6 +27,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("punch");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [records, setRecords] = useState<PunchRecord[]>([]);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [monthStart, setMonthStart] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -39,8 +41,14 @@ export default function Home() {
     loadRecords();
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
   const handlePunch = (type: PunchType) => {
-    if (!selectedEmployee || !EMPLOYEES.includes(selectedEmployee as any)) return;
+    if (!selectedEmployee || !EMPLOYEES.includes(selectedEmployee as any) || toastMessage) return;
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -56,6 +64,7 @@ export default function Home() {
     const next = [...getRecords(), record];
     saveRecords(next);
     setRecords(next);
+    setToastMessage(type === "clock_in" ? "出勤しました" : "退勤しました");
   };
 
   const todayPunches = records.filter((r) => r.date === getTodayDateStr());
@@ -152,7 +161,16 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <main className="min-h-screen bg-gray-50 p-4 md:p-6 relative">
+      {/* 打刻完了トースト（中央表示・2.5秒で消える） */}
+      {toastMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-gray-900 text-white px-8 py-4 rounded-xl text-xl font-medium shadow-lg">
+            {toastMessage}
+          </div>
+        </div>
+      )}
+
       <div className="max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
           勤怠管理システム
@@ -202,7 +220,7 @@ export default function Home() {
                 size="lg"
                 variant="success"
                 onClick={() => handlePunch("clock_in")}
-                disabled={!selectedEmployee}
+                disabled={!selectedEmployee || !!toastMessage}
                 className="h-20 text-xl"
               >
                 <Clock className="w-8 h-8" />
@@ -212,7 +230,7 @@ export default function Home() {
                 size="lg"
                 variant="destructive"
                 onClick={() => handlePunch("clock_out")}
-                disabled={!selectedEmployee}
+                disabled={!selectedEmployee || !!toastMessage}
                 className="h-20 text-xl"
               >
                 <Clock className="w-8 h-8" />
