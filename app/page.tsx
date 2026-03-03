@@ -42,12 +42,16 @@ export default function Home() {
   const handlePunch = (type: PunchType) => {
     if (!selectedEmployee || !EMPLOYEES.includes(selectedEmployee as any)) return;
     const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const timestamp = `${dateStr}T${timeStr}`;
     const record: PunchRecord = {
       id: `${now.getTime()}-${Math.random().toString(36).slice(2)}`,
       employee: selectedEmployee as any,
       type,
-      timestamp: now.toISOString(),
-      date: now.toISOString().slice(0, 10),
+      timestamp,
+      date: dateStr,
     };
     const next = [...getRecords(), record];
     saveRecords(next);
@@ -175,15 +179,15 @@ export default function Home() {
         {/* 打刻画面 */}
         {activeTab === "punch" && (
           <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-            <h2 className="text-lg font-semibold">打刻</h2>
+            <h2 className="text-lg font-semibold text-gray-900">打刻</h2>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 氏名を選択
               </label>
               <select
                 value={selectedEmployee}
                 onChange={(e) => setSelectedEmployee(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg text-gray-900 bg-white"
               >
                 <option value="">-- 選択してください --</option>
                 {EMPLOYEES.map((e) => (
@@ -224,7 +228,7 @@ export default function Home() {
         {/* 今日の一覧 */}
         {activeTab === "today" && (
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
               今日の打刻一覧（{getTodayDateStr()}）
             </h2>
             {todayPunches.length === 0 ? (
@@ -263,28 +267,28 @@ export default function Home() {
         {/* 月次集計 */}
         {activeTab === "monthly" && (
           <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-            <h2 className="text-lg font-semibold">月次集計</h2>
+            <h2 className="text-lg font-semibold text-gray-900">月次集計</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   開始日
                 </label>
                 <input
                   type="date"
                   value={monthStart}
                   onChange={(e) => setMonthStart(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   終了日
                 </label>
                 <input
                   type="date"
                   value={monthEnd}
                   onChange={(e) => setMonthEnd(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
                 />
               </div>
             </div>
@@ -293,17 +297,17 @@ export default function Home() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-4 py-2 text-left">氏名</th>
-                    <th className="px-4 py-2 text-right">出勤日数</th>
-                    <th className="px-4 py-2 text-right">総勤務時間</th>
+                    <th className="px-4 py-2 text-left text-gray-900">氏名</th>
+                    <th className="px-4 py-2 text-right text-gray-900">出勤日数</th>
+                    <th className="px-4 py-2 text-right text-gray-900">総勤務時間</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getSummaryFromDetail(getMonthlyDetail()).map((s) => (
                     <tr key={s.emp} className="border-t border-gray-100">
-                      <td className="px-4 py-2 font-medium">{s.emp}</td>
-                      <td className="px-4 py-2 text-right">{s.days}日</td>
-                      <td className="px-4 py-2 text-right">
+                      <td className="px-4 py-2 font-medium text-gray-900">{s.emp}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">{s.days}日</td>
+                      <td className="px-4 py-2 text-right text-gray-900">
                         {s.hours.toFixed(1)}h
                       </td>
                     </tr>
@@ -315,7 +319,7 @@ export default function Home() {
             <Button
               onClick={handleExcelExport}
               variant="outline"
-              className="w-full"
+              className="w-full text-gray-900"
             >
               <FileSpreadsheet className="w-5 h-5 mr-2" />
               Excelで出力
