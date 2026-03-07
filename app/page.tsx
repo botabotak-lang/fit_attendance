@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock, List, FileSpreadsheet, Trash2, LogOut, LogIn, DoorOpen, DoorClosed } from "lucide-react";
-import Link from "next/link";
+import { Clock, List, Trash2, LogOut, LogIn, DoorOpen, DoorClosed } from "lucide-react";
 import { EMPLOYEES, PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
 
 type Tab = "punch" | "today";
@@ -126,13 +125,8 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-gray-900">
             勤怠管理システム
           </h1>
-          <Link
-            href="/admin"
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm"
-          >
-            <FileSpreadsheet className="w-5 h-5" />
-            月次集計
-          </Link>
+          <span />
+
         </div>
 
         {/* タブ */}
@@ -269,7 +263,7 @@ export default function Home() {
                       key={r.id}
                       className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
                     >
-                      <span className="font-medium">{r.employee}</span>
+                      <span className="font-medium text-gray-900">{r.employee}</span>
                       <span
                         className={
                           r.type === "clock_in"
