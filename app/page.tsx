@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock, List, Trash2, LogOut, LogIn, DoorOpen, DoorClosed } from "lucide-react";
+import { Clock, List, Trash2, LogOut, LogIn, DoorOpen, DoorClosed, Pencil } from "lucide-react";
 import { EMPLOYEES, PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
 
 type Tab = "punch" | "today";
@@ -34,6 +34,12 @@ export default function Home() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [correctionMode, setCorrectionMode] = useState(false);
+  const [correctionTime, setCorrectionTime] = useState(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  });
   const loadRecords = () => setRecords(getRecords());
 
   useEffect(() => {
@@ -46,16 +52,20 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
-  const handlePunch = (type: PunchType) => {
+  const handlePunch = (type: PunchType, useCorrection = false) => {
     if (!selectedEmployee || !EMPLOYEES.includes(selectedEmployee as any) || toastMessage) return;
-    if (type === "clock_in" && !canClockIn) return;
-    if (type === "clock_out" && !canClockOut) return;
-    if (type === "go_out" && !canGoOut) return;
-    if (type === "go_back" && !canGoBack) return;
+    if (!useCorrection) {
+      if (type === "clock_in" && !canClockIn) return;
+      if (type === "clock_out" && !canClockOut) return;
+      if (type === "go_out" && !canGoOut) return;
+      if (type === "go_back" && !canGoBack) return;
+    }
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const timeStr = useCorrection
+      ? `${correctionTime}:00`
+      : `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     const timestamp = `${dateStr}T${timeStr}`;
     const record: PunchRecord = {
       id: `${now.getTime()}-${Math.random().toString(36).slice(2)}`,
@@ -67,15 +77,17 @@ export default function Home() {
     const next = [...getRecords(), record];
     saveRecords(next);
     setRecords(next);
+    const corrLabel = useCorrection ? "（修正）" : "";
     const msg =
       type === "clock_in"
-        ? "出勤しました"
+        ? `出勤しました${corrLabel}`
         : type === "clock_out"
-          ? "退勤しました"
+          ? `退勤しました${corrLabel}`
           : type === "go_out"
-            ? "外出しました"
-            : "戻りました";
+            ? `外出しました${corrLabel}`
+            : `戻りました${corrLabel}`;
     setToastMessage(msg);
+    if (useCorrection) setCorrectionMode(false);
   };
 
   const todayPunches = records.filter((r) => r.date === getTodayDateStr());
@@ -236,6 +248,88 @@ export default function Home() {
                 )}
               </div>
             </div>
+            {/* 修正ボタン */}
+            {!correctionMode && (
+              <button
+                type="button"
+                onClick={() => setCorrectionMode(true)}
+                className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors mx-auto"
+              >
+                <Pencil className="w-4 h-4" />
+                修正・追加
+              </button>
+            )}
+
+            {/* 修正モード */}
+            {correctionMode && (
+              <div className="border-2 border-amber-300 rounded-xl p-4 bg-amber-50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-amber-800">修正モード</h3>
+                  <button
+                    type="button"
+                    onClick={() => setCorrectionMode(false)}
+                    className="text-sm text-gray-500 hover:text-gray-800"
+                  >
+                    閉じる
+                  </button>
+                </div>
+                <p className="text-sm text-amber-700">
+                  打刻忘れや時刻の修正ができます。種類と時刻を選んで登録してください。
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">時刻</label>
+                  <input
+                    type="time"
+                    value={correctionTime}
+                    onChange={(e) => setCorrectionTime(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-lg"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    size="lg"
+                    variant="success"
+                    onClick={() => handlePunch("clock_in", true)}
+                    disabled={!selectedEmployee || !!toastMessage}
+                    className="h-14 text-base w-full"
+                  >
+                    <LogIn className="w-6 h-6" />
+                    出勤
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="destructive"
+                    onClick={() => handlePunch("clock_out", true)}
+                    disabled={!selectedEmployee || !!toastMessage}
+                    className="h-14 text-base w-full"
+                  >
+                    <LogOut className="w-6 h-6" />
+                    退勤
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => handlePunch("go_out", true)}
+                    disabled={!selectedEmployee || !!toastMessage}
+                    className="h-14 text-base w-full border-amber-400 text-amber-700 hover:bg-amber-50"
+                  >
+                    <DoorOpen className="w-6 h-6" />
+                    外出
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => handlePunch("go_back", true)}
+                    disabled={!selectedEmployee || !!toastMessage}
+                    className="h-14 text-base w-full border-blue-400 text-blue-700 hover:bg-blue-50"
+                  >
+                    <DoorClosed className="w-6 h-6" />
+                    戻り
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <p className="text-sm text-gray-500">
               入り口のiPadまたはスマホで打刻できます。
             </p>
