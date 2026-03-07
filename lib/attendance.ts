@@ -33,10 +33,11 @@ export function getMonthlyDetail(
   });
 
   const allDates: string[] = [];
-  const start = new Date(monthStart);
-  const end = new Date(monthEnd);
+  const start = new Date(monthStart + "T00:00:00");
+  const end = new Date(monthEnd + "T00:00:00");
   for (let d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
-    allDates.push(d.toISOString().slice(0, 10));
+    const pad = (n: number) => String(n).padStart(2, "0");
+    allDates.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
   }
 
   const rows: MonthlyDetailRow[] = [];

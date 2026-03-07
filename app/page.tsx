@@ -11,7 +11,9 @@ const TOAST_DURATION_MS = 2500;
 const NOON_HOUR = 12; // 午前/午後の境界（12:00）
 
 function getTodayDateStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function isMorning() {
