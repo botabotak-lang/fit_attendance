@@ -1,4 +1,4 @@
-import { EMPLOYEES, PunchRecord } from "./types";
+import { PunchRecord } from "./types";
 
 export function calcWorkHours(inTime: string, outTime: string): number {
   const [inH, inM] = inTime.split(":").map(Number);
@@ -19,7 +19,8 @@ export type MonthlyDetailRow = {
 export function getMonthlyDetail(
   records: PunchRecord[],
   monthStart: string,
-  monthEnd: string
+  monthEnd: string,
+  employeeList: string[]
 ): MonthlyDetailRow[] {
   const filtered = records
     .filter((r) => r.date >= monthStart && r.date <= monthEnd)
@@ -43,7 +44,7 @@ export function getMonthlyDetail(
   const rows: MonthlyDetailRow[] = [];
 
   allDates.forEach((date) => {
-    EMPLOYEES.forEach((emp) => {
+    employeeList.forEach((emp) => {
       const arr = byDateEmp[date]?.[emp] ?? [];
       if (arr.length === 0) {
         rows.push({
@@ -93,10 +94,11 @@ export function getMonthlyDetail(
 export type SummaryRow = { emp: string; days: number; leaveDays: number; hours: number };
 
 export function getSummaryFromDetail(
-  detail: MonthlyDetailRow[]
+  detail: MonthlyDetailRow[],
+  employeeList: string[]
 ): SummaryRow[] {
   const result: SummaryRow[] = [];
-  EMPLOYEES.forEach((emp) => {
+  employeeList.forEach((emp) => {
     const empDetails = detail.filter((d) => d.氏名 === emp);
     const days = empDetails.filter((d) => d.出勤 !== "-").length;
     const leaveDays = empDetails.filter((d) => d.勤務時間 === "休暇").length;

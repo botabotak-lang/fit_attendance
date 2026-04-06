@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, Trash2, ArrowLeft } from "lucide-react";
+import { FileSpreadsheet, Trash2, ArrowLeft, UserPlus, Save } from "lucide-react";
 import { PunchRecord, STORAGE_KEY } from "@/lib/types";
 import { getMonthlyDetail, getSummaryFromDetail } from "@/lib/attendance";
+import {
+  getEmployees,
+  saveEmployees,
+  applyEmployeeListRenames,
+} from "@/lib/employees";
 import * as XLSX from "xlsx";
 
 function getTodayDateStr() {
@@ -46,6 +51,8 @@ function getTypeClass(type: PunchRecord["type"]) {
 
 export default function AdminPage() {
   const [records, setRecords] = useState<PunchRecord[]>([]);
+  const [savedEmployeeList, setSavedEmployeeList] = useState<string[]>([]);
+  const [employeeDrafts, setEmployeeDrafts] = useState<string[]>([]);
   const [monthStart, setMonthStart] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -55,14 +62,56 @@ export default function AdminPage() {
 
   useEffect(() => {
     setRecords(getRecords());
+    const names = getEmployees();
+    setSavedEmployeeList(names);
+    setEmployeeDrafts([...names]);
   }, []);
 
   const monthlyPunches = records
     .filter((r) => r.date >= monthStart && r.date <= monthEnd)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-  const detail = getMonthlyDetail(records, monthStart, monthEnd);
-  const summary = getSummaryFromDetail(detail);
+  const detail = useMemo(
+    () =>
+      getMonthlyDetail(records, monthStart, monthEnd, savedEmployeeList),
+    [records, monthStart, monthEnd, savedEmployeeList]
+  );
+  const summary = useMemo(
+    () => getSummaryFromDetail(detail, savedEmployeeList),
+    [detail, savedEmployeeList]
+  );
+
+  const handleSaveEmployeeMaster = () => {
+    const cleaned = employeeDrafts.map((s) => s.trim()).filter(Boolean);
+    if (cleaned.length === 0) {
+      alert("氏名を1名以上入力してください。");
+      return;
+    }
+    if (cleaned.length !== new Set(cleaned).size) {
+      alert("同じ氏名が複数あります。重複を解消してから保存してください。");
+      return;
+    }
+    const prev = savedEmployeeList;
+    if (prev.length === cleaned.length) {
+      applyEmployeeListRenames(prev, cleaned);
+    }
+    saveEmployees(cleaned);
+    setSavedEmployeeList(cleaned);
+    setEmployeeDrafts([...cleaned]);
+    setRecords(getRecords());
+    alert("社員マスタを保存しました。打刻画面にも反映されます。");
+  };
+
+  const handleRemoveEmployeeRow = (index: number) => {
+    if (
+      !confirm(
+        "この行をマスタから外しますか？\n過去の打刻データは端末に残りますが、月次の氏名別の行には表示されなくなります。"
+      )
+    ) {
+      return;
+    }
+    setEmployeeDrafts((d) => d.filter((_, j) => j !== index));
+  };
 
   const handleDelete = (id: string) => {
     if (!confirm("この打刻を削除しますか？")) return;
@@ -108,6 +157,60 @@ export default function AdminPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+          <section className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/80">
+            <h2 className="text-base font-semibold text-gray-900">社員マスタ（打刻ボタンの氏名）</h2>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              行数が<strong>変わらない</strong>ときだけ、入力の変更が過去の打刻の氏名にも反映されます。
+              行の追加・削除と名前変更を同時にしないでください。
+            </p>
+            <ul className="space-y-2">
+              {employeeDrafts.map((name, index) => (
+                <li key={index} className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) =>
+                      setEmployeeDrafts((d) =>
+                        d.map((x, j) => (j === index ? e.target.value : x))
+                      )
+                    }
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                    placeholder="氏名"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveEmployeeRow(index)}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+                    aria-label="この行を削除"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEmployeeDrafts((d) => [...d, ""])}
+                className="text-gray-900"
+              >
+                <UserPlus className="w-4 h-4 mr-1" />
+                行を追加
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveEmployeeMaster}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4 mr-1" />
+                マスタを保存
+              </Button>
+            </div>
+          </section>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-900 mb-1">開始日</label>

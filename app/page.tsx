@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock, List, Trash2, LogOut, LogIn, DoorOpen, DoorClosed, Pencil } from "lucide-react";
-import { EMPLOYEES, PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
+import { Clock, List, LogOut, LogIn, DoorOpen, DoorClosed, Pencil } from "lucide-react";
+import { PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
+import {
+  getEmployees,
+  EMPLOYEES_CHANGED_EVENT,
+  EMPLOYEES_STORAGE_KEY,
+} from "@/lib/employees";
 
 type Tab = "punch" | "today";
 const TOAST_DURATION_MS = 2500;
@@ -32,6 +37,7 @@ function saveRecords(records: PunchRecord[]) {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("punch");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [employees, setEmployees] = useState<string[]>([]);
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [correctionMode, setCorrectionMode] = useState(false);
@@ -41,10 +47,37 @@ export default function Home() {
     return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   });
   const loadRecords = () => setRecords(getRecords());
+  const loadEmployees = () => setEmployees(getEmployees());
+
+  useEffect(() => {
+    loadEmployees();
+    loadRecords();
+  }, []);
 
   useEffect(() => {
     loadRecords();
   }, [activeTab]);
+
+  useEffect(() => {
+    const onEmployeesChanged = () => {
+      loadEmployees();
+      if (typeof window === "undefined") return;
+      const list = getEmployees();
+      setSelectedEmployee((cur) => (cur && list.includes(cur) ? cur : ""));
+    };
+    window.addEventListener(EMPLOYEES_CHANGED_EVENT, onEmployeesChanged);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === EMPLOYEES_STORAGE_KEY) onEmployeesChanged();
+    };
+    window.addEventListener("storage", onStorage);
+    const onFocus = () => loadEmployees();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener(EMPLOYEES_CHANGED_EVENT, onEmployeesChanged);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -53,7 +86,7 @@ export default function Home() {
   }, [toastMessage]);
 
   const handlePunch = (type: PunchType, useCorrection = false) => {
-    if (!selectedEmployee || !EMPLOYEES.includes(selectedEmployee as any) || toastMessage) return;
+    if (!selectedEmployee || !employees.includes(selectedEmployee) || toastMessage) return;
     if (!useCorrection) {
       if (type === "clock_in" && !canClockIn) return;
       if (type === "clock_out" && !canClockOut) return;
@@ -69,7 +102,7 @@ export default function Home() {
     const timestamp = `${dateStr}T${timeStr}`;
     const record: PunchRecord = {
       id: `${now.getTime()}-${Math.random().toString(36).slice(2)}`,
-      employee: selectedEmployee as any,
+      employee: selectedEmployee,
       type,
       timestamp,
       date: dateStr,
@@ -108,13 +141,6 @@ export default function Home() {
   const canClockOut = selectedEmployeeClockOutCount === 0;
   const canGoOut = selectedEmployeeGoOutCount === selectedEmployeeGoBackCount && selectedEmployeeClockInCount > 0 && selectedEmployeeClockOutCount === 0;
   const canGoBack = selectedEmployeeGoOutCount > selectedEmployeeGoBackCount;
-
-  const handleDelete = (id: string) => {
-    if (!confirm("この打刻を削除しますか？")) return;
-    const next = getRecords().filter((r) => r.id !== id);
-    saveRecords(next);
-    setRecords(next);
-  };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "punch", label: "打刻", icon: <Clock className="w-5 h-5" /> },
@@ -166,7 +192,7 @@ export default function Home() {
             <div>
               <p className="block text-sm font-medium text-gray-900 mb-3">氏名を選択</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {EMPLOYEES.map((e) => (
+                {employees.map((e) => (
                   <button
                     key={e}
                     type="button"
@@ -378,14 +404,6 @@ export default function Home() {
                               : "戻り"}{" "}
                         {r.timestamp.slice(11, 16)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(r.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        aria-label="削除"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
                     </div>
                   ))}
               </div>
