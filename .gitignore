@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# ローカル用勤務状況テンプレ（アプリから同様の体裁で出力。Git 管理しない）
+/22.勤務状況 -.xlsx
+
 # debug
 npm-debug.log*
 yarn-debug.log*
