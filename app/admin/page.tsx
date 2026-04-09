@@ -140,28 +140,6 @@ export default function AdminPage() {
     setRecords(next);
   };
 
-  const handleExcelExport = () => {
-    const summaryData: (string | number)[][] = [
-      ["月次勤怠集計（社長専用）"],
-      ["集計期間", `${monthStart} 〜 ${monthEnd}`],
-      [],
-      ["氏名", "出勤日数", "休暇日数", "総勤務時間"],
-      ...summary.map((s) => [s.emp, s.days, s.leaveDays, `${s.hours.toFixed(1)}h`]),
-    ];
-
-    const detailData: (string | number)[][] = [
-      ["日付", "氏名", "出勤", "退勤", "外出", "戻り", "勤務時間"],
-      ...detail.map((d) => [d.日付, d.氏名, d.出勤, d.退勤, d.外出, d.戻り, d.勤務時間]),
-    ];
-
-    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-    const ws2 = XLSX.utils.aoa_to_sheet(detailData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws1, "集計");
-    XLSX.utils.book_append_sheet(wb, ws2, "明細");
-    XLSX.writeFile(wb, `勤怠集計_${monthStart}_${monthEnd}.xlsx`);
-  };
-
   const handleWorkStatusExport = () => {
     if (savedEmployeeList.length === 0) {
       alert("社員マスタに氏名がありません。先にマスタを保存してください。");
@@ -294,15 +272,6 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
-
-          <Button
-            onClick={handleExcelExport}
-            variant="outline"
-            className="w-full text-gray-900"
-          >
-            <FileSpreadsheet className="w-5 h-5 mr-2" />
-            Excelで出力
-          </Button>
 
           <section className="border border-gray-200 rounded-lg p-4 space-y-3 bg-amber-50/40">
             <h2 className="text-base font-semibold text-gray-900">勤務状況一覧（社長用・21日締め）</h2>
