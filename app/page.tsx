@@ -3,6 +3,7 @@
 import { useState, useEffect, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Clock, List, LogOut, LogIn, DoorOpen, DoorClosed, Pencil } from "lucide-react";
+import { AppBrandLogo } from "@/components/AppBrandLogo";
 import { PunchRecord, PunchType } from "@/lib/types";
 import { EMPLOYEES_CHANGED_EVENT, EMPLOYEES_STORAGE_KEY } from "@/lib/employees";
 import {
@@ -201,10 +202,8 @@ export default function Home() {
 
       <div className="max-w-2xl mx-auto">
         <header className="mb-8">
-          <div className="flex flex-wrap items-center gap-2.5 mb-2">
-            <span className="inline-flex items-center rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-bold tracking-wider text-white">
-              FIT
-            </span>
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            <AppBrandLogo />
             <span className="text-sm font-medium text-slate-500">勤怠打刻</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">

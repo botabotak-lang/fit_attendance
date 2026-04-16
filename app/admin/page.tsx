@@ -11,6 +11,7 @@ import {
   Save,
   Pencil,
 } from "lucide-react";
+import { AppBrandLogo } from "@/components/AppBrandLogo";
 import { PunchRecord, PunchType } from "@/lib/types";
 import { getMonthlyDetail, getSummaryFromDetail } from "@/lib/attendance";
 import {
@@ -249,10 +250,8 @@ export default function AdminPage() {
       <div className="mx-auto max-w-3xl">
         <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-bold tracking-wider text-white">
-                FIT
-              </span>
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <AppBrandLogo />
               <span className="text-sm font-medium text-slate-500">月次集計</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">月次集計（社長専用）</h1>

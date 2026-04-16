@@ -12,6 +12,10 @@ const notoSansJP = Noto_Sans_JP({
 export const metadata: Metadata = {
   title: "勤怠管理システム | FIT",
   description: "FIT社向け勤怠打刻・月次集計システム",
+  icons: {
+    icon: [{ url: "/fit-logo.png", type: "image/png" }],
+    apple: [{ url: "/fit-logo.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
