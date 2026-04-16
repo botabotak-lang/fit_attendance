@@ -12,16 +12,11 @@ import {
 
 type Tab = "punch" | "today";
 const TOAST_DURATION_MS = 2500;
-const NOON_HOUR = 12; // 午前/午後の境界（12:00）
 
 function getTodayDateStr() {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function isMorning() {
-  return new Date().getHours() < NOON_HOUR;
 }
 
 function getRecords(): PunchRecord[] {
@@ -85,8 +80,23 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
+  useEffect(() => {
+    const todayStr = getTodayDateStr();
+    const has =
+      !!selectedEmployee &&
+      records.some((r) => r.date === todayStr && r.employee === selectedEmployee);
+    if (correctionMode && !has) setCorrectionMode(false);
+  }, [correctionMode, selectedEmployee, records]);
+
   const handlePunch = (type: PunchType, useCorrection = false) => {
     if (!selectedEmployee || !employees.includes(selectedEmployee) || toastMessage) return;
+    if (useCorrection) {
+      const todayStr = getTodayDateStr();
+      const hasAnyToday = getRecords().some(
+        (r) => r.date === todayStr && r.employee === selectedEmployee
+      );
+      if (!hasAnyToday) return;
+    }
     if (!useCorrection) {
       if (type === "clock_in" && !canClockIn) return;
       if (type === "clock_out" && !canClockOut) return;
@@ -141,6 +151,10 @@ export default function Home() {
   const canClockOut = selectedEmployeeClockOutCount === 0;
   const canGoOut = selectedEmployeeGoOutCount === selectedEmployeeGoBackCount && selectedEmployeeClockInCount > 0 && selectedEmployeeClockOutCount === 0;
   const canGoBack = selectedEmployeeGoOutCount > selectedEmployeeGoBackCount;
+
+  const hasPunchedToday =
+    !!selectedEmployee &&
+    records.some((r) => r.date === today && r.employee === selectedEmployee);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "punch", label: "打刻", icon: <Clock className="w-5 h-5" /> },
@@ -209,38 +223,39 @@ export default function Home() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {isMorning() && (
+              {selectedEmployee && canClockIn && (
                 <div className="col-span-2">
                   <Button
                     size="lg"
                     variant="success"
                     onClick={() => handlePunch("clock_in")}
-                    disabled={!selectedEmployee || !!toastMessage || !canClockIn}
+                    disabled={!!toastMessage || !canClockIn}
                     className="h-20 text-xl w-full"
                   >
                     <LogIn className="w-8 h-8" />
                     出勤
                   </Button>
-                  {selectedEmployee && !canClockIn && (
-                    <p className="text-sm text-amber-600 mt-1">本日はすでに出勤済みです</p>
-                  )}
                 </div>
               )}
-              {!isMorning() && (
+              {selectedEmployee && !canClockIn && canClockOut && (
                 <div className="col-span-2">
                   <Button
                     size="lg"
                     variant="destructive"
                     onClick={() => handlePunch("clock_out")}
-                    disabled={!selectedEmployee || !!toastMessage || !canClockOut}
+                    disabled={!!toastMessage || !canClockOut}
                     className="h-20 text-xl w-full"
                   >
                     <LogOut className="w-8 h-8" />
                     退勤
                   </Button>
-                  {selectedEmployee && !canClockOut && (
-                    <p className="text-sm text-amber-600 mt-1">本日はすでに退勤済みです</p>
-                  )}
+                </div>
+              )}
+              {selectedEmployee && !canClockIn && !canClockOut && (
+                <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center">
+                  <p className="text-sm font-medium text-gray-700">
+                    本日の出勤・退勤は完了しています
+                  </p>
                 </div>
               )}
               <div>
@@ -276,18 +291,26 @@ export default function Home() {
             </div>
             {/* 修正ボタン */}
             {!correctionMode && (
-              <button
-                type="button"
-                onClick={() => setCorrectionMode(true)}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors mx-auto"
-              >
-                <Pencil className="w-4 h-4" />
-                修正・追加
-              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCorrectionMode(true)}
+                  disabled={!selectedEmployee || !hasPunchedToday}
+                  className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                >
+                  <Pencil className="w-4 h-4" />
+                  修正・追加
+                </button>
+                {selectedEmployee && !hasPunchedToday && (
+                  <p className="text-xs text-gray-500 text-center">
+                    本日の打刻がある場合のみ修正できます（先に打刻してください）
+                  </p>
+                )}
+              </div>
             )}
 
             {/* 修正モード */}
-            {correctionMode && (
+            {correctionMode && hasPunchedToday && (
               <div className="border-2 border-amber-300 rounded-xl p-4 bg-amber-50 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-semibold text-amber-800">修正モード</h3>
@@ -303,55 +326,61 @@ export default function Home() {
                   打刻忘れや時刻の修正ができます。種類と時刻を選んで登録してください。
                 </p>
                 <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">種類</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      size="lg"
+                      variant="success"
+                      onClick={() => handlePunch("clock_in", true)}
+                      disabled={!selectedEmployee || !!toastMessage || !hasPunchedToday}
+                      className="h-14 text-base w-full"
+                    >
+                      <LogIn className="w-6 h-6" />
+                      出勤
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="destructive"
+                      onClick={() => handlePunch("clock_out", true)}
+                      disabled={!selectedEmployee || !!toastMessage || !hasPunchedToday}
+                      className="h-14 text-base w-full"
+                    >
+                      <LogOut className="w-6 h-6" />
+                      退勤
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => handlePunch("go_out", true)}
+                      disabled={!selectedEmployee || !!toastMessage || !hasPunchedToday}
+                      className="h-14 text-base w-full border-amber-400 text-amber-700 hover:bg-amber-50"
+                    >
+                      <DoorOpen className="w-6 h-6" />
+                      外出
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => handlePunch("go_back", true)}
+                      disabled={!selectedEmployee || !!toastMessage || !hasPunchedToday}
+                      className="h-14 text-base w-full border-blue-400 text-blue-700 hover:bg-blue-50"
+                    >
+                      <DoorClosed className="w-6 h-6" />
+                      戻り
+                    </Button>
+                  </div>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1">時刻</label>
                   <input
                     type="time"
                     value={correctionTime}
                     onChange={(e) => setCorrectionTime(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-lg"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-lg bg-white"
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    size="lg"
-                    variant="success"
-                    onClick={() => handlePunch("clock_in", true)}
-                    disabled={!selectedEmployee || !!toastMessage}
-                    className="h-14 text-base w-full"
-                  >
-                    <LogIn className="w-6 h-6" />
-                    出勤
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="destructive"
-                    onClick={() => handlePunch("clock_out", true)}
-                    disabled={!selectedEmployee || !!toastMessage}
-                    className="h-14 text-base w-full"
-                  >
-                    <LogOut className="w-6 h-6" />
-                    退勤
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    onClick={() => handlePunch("go_out", true)}
-                    disabled={!selectedEmployee || !!toastMessage}
-                    className="h-14 text-base w-full border-amber-400 text-amber-700 hover:bg-amber-50"
-                  >
-                    <DoorOpen className="w-6 h-6" />
-                    外出
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    onClick={() => handlePunch("go_back", true)}
-                    disabled={!selectedEmployee || !!toastMessage}
-                    className="h-14 text-base w-full border-blue-400 text-blue-700 hover:bg-blue-50"
-                  >
-                    <DoorClosed className="w-6 h-6" />
-                    戻り
-                  </Button>
+                  <p className="text-xs text-amber-800/80 mt-1">
+                    登録する時刻を指定してから、上の種類を押してください。
+                  </p>
                 </div>
               </div>
             )}
