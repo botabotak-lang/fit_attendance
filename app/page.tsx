@@ -404,11 +404,14 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {todayPunches
-                  .sort(
-                    (a, b) =>
+                  .sort((a, b) => {
+                    const nameCmp = a.employee.localeCompare(b.employee, "ja");
+                    if (nameCmp !== 0) return nameCmp;
+                    return (
                       new Date(a.timestamp).getTime() -
                       new Date(b.timestamp).getTime()
-                  )
+                    );
+                  })
                   .map((r) => (
                     <div
                       key={r.id}
