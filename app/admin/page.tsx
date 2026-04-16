@@ -3,8 +3,15 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet, Trash2, ArrowLeft, UserPlus, Save } from "lucide-react";
-import { PunchRecord, STORAGE_KEY } from "@/lib/types";
+import {
+  FileSpreadsheet,
+  Trash2,
+  ArrowLeft,
+  UserPlus,
+  Save,
+  Pencil,
+} from "lucide-react";
+import { PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
 import { getMonthlyDetail, getSummaryFromDetail } from "@/lib/attendance";
 import {
   getEmployees,
@@ -13,6 +20,7 @@ import {
 } from "@/lib/employees";
 import {
   getClosingPeriod,
+  getClosingPeriodContainingDate,
   countWeekdaysInRange,
   buildWorkStatusWorkbook,
   workStatusFileName,
@@ -60,16 +68,26 @@ export default function AdminPage() {
   const [savedEmployeeList, setSavedEmployeeList] = useState<string[]>([]);
   const [employeeDrafts, setEmployeeDrafts] = useState<string[]>([]);
   const [monthStart, setMonthStart] = useState(() => {
+    const p = getClosingPeriodContainingDate(getTodayDateStr());
+    if (p) return p.start;
     const d = new Date();
     d.setDate(1);
     return d.toISOString().slice(0, 10);
   });
-  const [monthEnd, setMonthEnd] = useState(() => getTodayDateStr());
+  const [monthEnd, setMonthEnd] = useState(() => {
+    const p = getClosingPeriodContainingDate(getTodayDateStr());
+    return p?.end ?? getTodayDateStr();
+  });
   const [closingEndMonth, setClosingEndMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [requiredDaysOverride, setRequiredDaysOverride] = useState("");
+  const [editingRecord, setEditingRecord] = useState<PunchRecord | null>(null);
+  const [editEmployee, setEditEmployee] = useState("");
+  const [editType, setEditType] = useState<PunchType>("clock_in");
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("09:00");
 
   useEffect(() => {
     setRecords(getRecords());
@@ -78,9 +96,17 @@ export default function AdminPage() {
     setEmployeeDrafts([...names]);
   }, []);
 
-  const monthlyPunches = records
-    .filter((r) => r.date >= monthStart && r.date <= monthEnd)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const monthlyPunches = useMemo(() => {
+    return records
+      .filter((r) => r.date >= monthStart && r.date <= monthEnd)
+      .sort((a, b) => {
+        const nameCmp = a.employee.localeCompare(b.employee, "ja");
+        if (nameCmp !== 0) return nameCmp;
+        return (
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+      });
+  }, [records, monthStart, monthEnd]);
 
   const detail = useMemo(
     () =>
@@ -138,6 +164,51 @@ export default function AdminPage() {
     const next = getRecords().filter((r) => r.id !== id);
     saveRecords(next);
     setRecords(next);
+    if (editingRecord?.id === id) setEditingRecord(null);
+  };
+
+  const openEdit = (r: PunchRecord) => {
+    setEditingRecord(r);
+    setEditEmployee(r.employee);
+    setEditType(r.type);
+    setEditDate(r.date);
+    setEditTime(r.timestamp.slice(11, 16));
+  };
+
+  const editEmployeeOptions = useMemo(() => {
+    const set = new Set(savedEmployeeList);
+    if (editingRecord?.employee && !set.has(editingRecord.employee)) {
+      return [...savedEmployeeList, editingRecord.employee];
+    }
+    return savedEmployeeList;
+  }, [savedEmployeeList, editingRecord]);
+
+  const handleSaveEdit = () => {
+    if (!editingRecord) return;
+    const emp = editEmployee.trim();
+    if (!emp) {
+      alert("氏名を入力してください。");
+      return;
+    }
+    if (!savedEmployeeList.includes(emp) && emp !== editingRecord.employee) {
+      alert("氏名は社員マスタに登録されている名前から選んでください。");
+      return;
+    }
+    const ts = `${editDate}T${editTime}:00`;
+    const next = getRecords().map((r) =>
+      r.id === editingRecord.id
+        ? {
+            ...r,
+            employee: emp,
+            type: editType,
+            date: editDate,
+            timestamp: ts,
+          }
+        : r
+    );
+    saveRecords(next);
+    setRecords(next);
+    setEditingRecord(null);
   };
 
   const handleWorkStatusExport = () => {
@@ -274,9 +345,12 @@ export default function AdminPage() {
           </div>
 
           <section className="border border-gray-200 rounded-lg p-4 space-y-3 bg-amber-50/40">
-            <h2 className="text-base font-semibold text-gray-900">勤務状況一覧（社長用・21日締め）</h2>
+            <h2 className="text-base font-semibold text-gray-900">
+              勤務状況一覧（社長用・各月20日締め）
+            </h2>
             <p className="text-xs text-gray-600 leading-relaxed">
-              終了月を選ぶと、<strong>前月21日〜当該月20日</strong>の期間で一覧を出力します。社員列は
+              <strong>締め日は毎月20日</strong>です。終了月を選ぶと、
+              <strong>前月21日〜当該月20日</strong>の期間で一覧を出力します。社員列は
               <strong>マスタの上から順</strong>です（6名を超える場合は2枚目シートに7人目以降）。要出勤日数は
               平日数を提案し、空欄のままならそれを採用／数値を入れると上書きします。
             </p>
@@ -330,7 +404,9 @@ export default function AdminPage() {
           </section>
 
           <div>
-            <h3 className="text-base font-semibold text-gray-900 mb-3">打刻明細</h3>
+            <h3 className="text-base font-semibold text-gray-900 mb-3">
+              打刻明細（氏名順・同一日内は時刻順）
+            </h3>
             {monthlyPunches.length === 0 ? (
               <p className="text-gray-500 text-sm">期間内の打刻はありません</p>
             ) : (
@@ -338,22 +414,34 @@ export default function AdminPage() {
                 {monthlyPunches.map((r) => (
                   <div
                     key={r.id}
-                    className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
+                    className="flex flex-wrap items-center gap-2 py-2 border-b border-gray-100 last:border-0"
                   >
-                    <span className="text-sm text-gray-900">
+                    <span className="text-sm text-gray-900 flex-1 min-w-[10rem]">
                       {r.date} {r.employee}
                     </span>
-                    <span className={`font-semibold text-sm ${getTypeClass(r.type)}`}>
+                    <span
+                      className={`font-semibold text-sm flex-1 min-w-[8rem] ${getTypeClass(r.type)}`}
+                    >
                       {getTypeLabel(r.type)} {r.timestamp.slice(11, 16)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(r.id)}
-                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      aria-label="削除"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(r)}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        aria-label="編集"
+                      >
+                        <Pencil className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(r.id)}
+                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label="削除"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -361,6 +449,73 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div
+            className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4"
+            role="dialog"
+            aria-labelledby="edit-punch-title"
+          >
+            <h2 id="edit-punch-title" className="text-lg font-semibold text-gray-900">
+              打刻を修正
+            </h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">氏名</label>
+              <select
+                value={editEmployee}
+                onChange={(e) => setEditEmployee(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+              >
+                {editEmployeeOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">種類</label>
+              <select
+                value={editType}
+                onChange={(e) => setEditType(e.target.value as PunchType)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+              >
+                <option value="clock_in">出勤</option>
+                <option value="clock_out">退勤</option>
+                <option value="go_out">外出</option>
+                <option value="go_back">戻り</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">日付</label>
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">時刻</label>
+              <input
+                type="time"
+                value={editTime}
+                onChange={(e) => setEditTime(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditingRecord(null)}>
+                キャンセル
+              </Button>
+              <Button type="button" onClick={handleSaveEdit}>
+                保存
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

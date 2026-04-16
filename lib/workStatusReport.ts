@@ -26,6 +26,30 @@ export function getClosingPeriod(ym: string): { start: string; end: string } | n
   return { start, end };
 }
 
+/**
+ * 指定日を含む20日締め区間（前月21日〜当月20日）の開始日・終了日。
+ * 日が21日以降なら「翌月20日まで」の区間に属する。
+ */
+export function getClosingPeriodContainingDate(
+  dateStr: string
+): { start: string; end: string } | null {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  if (day <= 20) {
+    return getClosingPeriod(`${y}-${pad2(mo)}`);
+  }
+  let ey = y;
+  let em = mo + 1;
+  if (em > 12) {
+    em = 1;
+    ey += 1;
+  }
+  return getClosingPeriod(`${ey}-${pad2(em)}`);
+}
+
 export function enumerateDatesInclusive(start: string, end: string): string[] {
   const out: string[] = [];
   const a = new Date(start + "T12:00:00");

@@ -384,10 +384,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-
-            <p className="text-sm text-gray-500">
-              入り口のiPadまたはスマホで打刻できます。
-            </p>
           </div>
         )}
 
