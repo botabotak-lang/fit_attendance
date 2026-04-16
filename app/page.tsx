@@ -162,35 +162,40 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-6 relative">
-      {/* 打刻完了トースト（中央表示・2.5秒で消える） */}
+    <main className="min-h-screen bg-slate-100 p-4 md:p-6 relative">
+      {/* 打刻完了トースト（下部スナックバー風・2.5秒で消える） */}
       {toastMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="bg-gray-900 text-white px-8 py-4 rounded-xl text-xl font-medium shadow-lg">
+        <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center pointer-events-none px-4 pb-6 md:pb-8">
+          <div className="pointer-events-auto max-w-md w-full bg-slate-900 text-white px-5 py-3.5 rounded-2xl text-base font-medium text-center shadow-2xl border border-white/10">
             {toastMessage}
           </div>
         </div>
       )}
 
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
+        <header className="mb-8">
+          <div className="flex flex-wrap items-center gap-2.5 mb-2">
+            <span className="inline-flex items-center rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-bold tracking-wider text-white">
+              FIT
+            </span>
+            <span className="text-sm font-medium text-slate-500">勤怠打刻</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             勤怠管理システム
           </h1>
-          <span />
+        </header>
 
-        </div>
-
-        {/* タブ */}
-        <div className="flex gap-2 mb-6">
+        {/* タブ（セグメント型） */}
+        <div className="mb-6 flex gap-1 rounded-xl bg-slate-200/70 p-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-medium transition-all ${
                 activeTab === tab.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
+                  : "text-slate-600 hover:text-slate-900"
               }`}
             >
               {tab.icon}
@@ -201,20 +206,20 @@ export default function Home() {
 
         {/* 打刻画面 */}
         {activeTab === "punch" && (
-          <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-            <h2 className="text-lg font-semibold text-gray-900">打刻</h2>
+          <div className="space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">打刻</h2>
             <div>
-              <p className="block text-sm font-medium text-gray-900 mb-3">氏名を選択</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <p className="mb-3 block text-sm font-medium text-slate-900">氏名を選択</p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {employees.map((e) => (
                   <button
                     key={e}
                     type="button"
                     onClick={() => setSelectedEmployee(e)}
-                    className={`py-4 px-4 rounded-xl text-lg font-semibold transition-all ${
+                    className={`rounded-xl px-4 py-4 text-lg font-semibold transition-all ${
                       selectedEmployee === e
-                        ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-400"
-                        : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                        ? "bg-slate-900 text-white shadow-md ring-2 ring-slate-400/60"
+                        : "bg-slate-100 text-slate-800 hover:bg-slate-200"
                     }`}
                   >
                     {e}
@@ -252,12 +257,12 @@ export default function Home() {
                 </div>
               )}
               {selectedEmployee && !canClockIn && !canClockOut && (
-                <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center space-y-2">
-                  <p className="text-sm font-medium text-gray-700">
+                <div className="col-span-2 space-y-2 rounded-xl border border-slate-200/80 bg-slate-50 px-4 py-4 text-center">
+                  <p className="text-sm font-medium text-slate-700">
                     本日の出勤・退勤は完了しています
                   </p>
                   {hasPunchedToday && (
-                    <p className="text-xs text-gray-600 leading-snug">
+                    <p className="text-xs leading-snug text-slate-600">
                       打刻の追加や時刻の訂正は、<strong>下の「修正・追加」ボタン</strong>から行えます。
                     </p>
                   )}
@@ -275,7 +280,7 @@ export default function Home() {
                   外出
                 </Button>
                 {selectedEmployee && !canGoOut && (
-                  <p className="text-sm text-amber-600 mt-1">外出できる状態ではありません</p>
+                  <p className="mt-1 text-sm text-amber-600">外出できる状態ではありません</p>
                 )}
               </div>
               <div>
@@ -290,13 +295,13 @@ export default function Home() {
                   戻り
                 </Button>
                 {selectedEmployee && !canGoBack && (
-                  <p className="text-sm text-gray-500 mt-1">外出していません</p>
+                  <p className="mt-1 text-sm text-slate-500">外出していません</p>
                 )}
               </div>
             </div>
             {/* 修正・追加（全幅・視認性重視） */}
             {!correctionMode && (
-              <div className="border-t border-gray-200 pt-4 space-y-2">
+              <div className="space-y-2 border-t border-slate-200/80 pt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -308,7 +313,7 @@ export default function Home() {
                   修正・追加（時刻の訂正・打刻の追加）
                 </Button>
                 {selectedEmployee && !hasPunchedToday && (
-                  <p className="text-xs text-gray-600 text-center">
+                  <p className="text-center text-xs text-slate-600">
                     本日の打刻がある場合のみ利用できます（先に出勤などの打刻をしてください）
                   </p>
                 )}
@@ -317,13 +322,13 @@ export default function Home() {
 
             {/* 修正モード */}
             {correctionMode && hasPunchedToday && (
-              <div className="border-2 border-amber-300 rounded-xl p-4 bg-amber-50 space-y-4">
+              <div className="space-y-4 rounded-xl border-2 border-amber-300/90 bg-amber-50 p-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-semibold text-amber-800">修正モード</h3>
                   <button
                     type="button"
                     onClick={() => setCorrectionMode(false)}
-                    className="text-sm text-gray-500 hover:text-gray-800"
+                    className="text-sm text-slate-500 hover:text-slate-800"
                   >
                     閉じる
                   </button>
@@ -332,7 +337,7 @@ export default function Home() {
                   打刻忘れや時刻の修正ができます。種類と時刻を選んで登録してください。
                 </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">種類</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">種類</label>
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       size="lg"
@@ -377,12 +382,12 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-1">時刻</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-900">時刻</label>
                   <input
                     type="time"
                     value={correctionTime}
                     onChange={(e) => setCorrectionTime(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-lg bg-white"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-lg text-slate-900"
                   />
                   <p className="text-xs text-amber-800/80 mt-1">
                     登録する時刻を指定してから、上の種類を押してください。
@@ -395,12 +400,12 @@ export default function Home() {
 
         {/* 今日の一覧 */}
         {activeTab === "today" && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">
               今日の打刻一覧（{getTodayDateStr()}）
             </h2>
             {todayPunches.length === 0 ? (
-              <p className="text-gray-500">本日の打刻はまだありません</p>
+              <p className="text-slate-500">本日の打刻はまだありません</p>
             ) : (
               <div className="space-y-2">
                 {todayPunches
@@ -415,9 +420,9 @@ export default function Home() {
                   .map((r) => (
                     <div
                       key={r.id}
-                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0"
+                      className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0"
                     >
-                      <span className="font-medium text-gray-900">{r.employee}</span>
+                      <span className="font-medium text-slate-900">{r.employee}</span>
                       <span
                         className={
                           r.type === "clock_in"

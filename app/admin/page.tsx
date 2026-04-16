@@ -59,7 +59,7 @@ function getTypeClass(type: PunchRecord["type"]) {
     case "clock_out": return "text-red-600";
     case "go_out": return "text-amber-600";
     case "go_back": return "text-blue-600";
-    default: return "text-gray-600";
+    default: return "text-slate-600";
   }
 }
 
@@ -230,23 +230,31 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">月次集計（社長専用）</h1>
+    <main className="min-h-screen bg-slate-100 p-4 md:p-6">
+      <div className="mx-auto max-w-3xl">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-bold tracking-wider text-white">
+                FIT
+              </span>
+              <span className="text-sm font-medium text-slate-500">月次集計</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">月次集計（社長専用）</h1>
+          </div>
           <Link
             href="/"
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
             打刻に戻る
           </Link>
-        </div>
+        </header>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-          <section className="border border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/80">
-            <h2 className="text-base font-semibold text-gray-900">社員マスタ（打刻ボタンの氏名）</h2>
-            <p className="text-xs text-gray-600 leading-relaxed">
+        <div className="space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <section className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/90 p-4">
+            <h2 className="text-base font-semibold text-slate-900">社員マスタ（打刻ボタンの氏名）</h2>
+            <p className="text-xs leading-relaxed text-slate-600">
               行数が<strong>変わらない</strong>ときだけ、入力の変更が過去の打刻の氏名にも反映されます。
               行の追加・削除と名前変更を同時にしないでください。
             </p>
@@ -261,13 +269,13 @@ export default function AdminPage() {
                         d.map((x, j) => (j === index ? e.target.value : x))
                       )
                     }
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                     placeholder="氏名"
                   />
                   <button
                     type="button"
                     onClick={() => handleRemoveEmployeeRow(index)}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+                    className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
                     aria-label="この行を削除"
                   >
                     <Trash2 className="w-5 h-5" />
@@ -281,7 +289,7 @@ export default function AdminPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setEmployeeDrafts((d) => [...d, ""])}
-                className="text-gray-900"
+                className="text-slate-900"
               >
                 <UserPlus className="w-4 h-4 mr-1" />
                 行を追加
@@ -290,7 +298,7 @@ export default function AdminPage() {
                 type="button"
                 size="sm"
                 onClick={handleSaveEmployeeMaster}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-slate-900 hover:bg-slate-800"
               >
                 <Save className="w-4 h-4 mr-1" />
                 マスタを保存
@@ -300,42 +308,42 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">開始日</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">開始日</label>
               <input
                 type="date"
                 value={monthStart}
                 onChange={(e) => setMonthStart(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">終了日</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">終了日</label>
               <input
                 type="date"
                 value={monthEnd}
                 onChange={(e) => setMonthEnd(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               />
             </div>
           </div>
 
-          <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-hidden rounded-xl border border-slate-200/80">
             <table className="w-full text-sm">
-              <thead className="bg-gray-100">
+              <thead className="bg-slate-100">
                 <tr>
-                  <th className="px-4 py-2 text-left text-gray-900">氏名</th>
-                  <th className="px-4 py-2 text-right text-gray-900">出勤日数</th>
-                  <th className="px-4 py-2 text-right text-gray-900">休暇日数</th>
-                  <th className="px-4 py-2 text-right text-gray-900">総勤務時間</th>
+                  <th className="px-4 py-2 text-left text-slate-900">氏名</th>
+                  <th className="px-4 py-2 text-right text-slate-900">出勤日数</th>
+                  <th className="px-4 py-2 text-right text-slate-900">休暇日数</th>
+                  <th className="px-4 py-2 text-right text-slate-900">総勤務時間</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.map((s) => (
-                  <tr key={s.emp} className="border-t border-gray-100">
-                    <td className="px-4 py-2 font-medium text-gray-900">{s.emp}</td>
-                    <td className="px-4 py-2 text-right text-gray-900">{s.days}日</td>
-                    <td className="px-4 py-2 text-right text-gray-500">{s.leaveDays}日</td>
-                    <td className="px-4 py-2 text-right text-gray-900">
+                  <tr key={s.emp} className="border-t border-slate-100">
+                    <td className="px-4 py-2 font-medium text-slate-900">{s.emp}</td>
+                    <td className="px-4 py-2 text-right text-slate-900">{s.days}日</td>
+                    <td className="px-4 py-2 text-right text-slate-500">{s.leaveDays}日</td>
+                    <td className="px-4 py-2 text-right text-slate-900">
                       {s.hours.toFixed(1)}h
                     </td>
                   </tr>
@@ -344,11 +352,11 @@ export default function AdminPage() {
             </table>
           </div>
 
-          <section className="border border-gray-200 rounded-lg p-4 space-y-3 bg-amber-50/40">
-            <h2 className="text-base font-semibold text-gray-900">
+          <section className="space-y-3 rounded-xl border border-slate-200/80 bg-amber-50/50 p-4">
+            <h2 className="text-base font-semibold text-slate-900">
               勤務状況一覧（社長用・各月20日締め）
             </h2>
-            <p className="text-xs text-gray-600 leading-relaxed">
+            <p className="text-xs leading-relaxed text-slate-600">
               <strong>締め日は毎月20日</strong>です。終了月を選ぶと、
               <strong>前月21日〜当該月20日</strong>の期間で一覧を出力します。社員列は
               <strong>マスタの上から順</strong>です（6名を超える場合は2枚目シートに7人目以降）。要出勤日数は
@@ -356,17 +364,17 @@ export default function AdminPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">
+                <label className="mb-1 block text-sm font-medium text-slate-900">
                   締めの終了月（例：4月→3/21〜4/20）
                 </label>
                 <input
                   type="month"
                   value={closingEndMonth}
                   onChange={(e) => setClosingEndMonth(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                 />
                 {workStatusPeriod && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs text-slate-500">
                     期間：{workStatusPeriod.start} 〜 {workStatusPeriod.end}
                     {suggestedRequiredDays != null && (
                       <> ／ 提案の要出勤日数（平日）：{suggestedRequiredDays}日</>
@@ -375,7 +383,7 @@ export default function AdminPage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">
+                <label className="mb-1 block text-sm font-medium text-slate-900">
                   要出勤日数（空欄＝提案どおり）
                 </label>
                 <input
@@ -389,7 +397,7 @@ export default function AdminPage() {
                       ? `未入力時は ${suggestedRequiredDays} 日`
                       : "平日の提案値を使用"
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
                 />
               </div>
             </div>
@@ -404,19 +412,19 @@ export default function AdminPage() {
           </section>
 
           <div>
-            <h3 className="text-base font-semibold text-gray-900 mb-3">
+            <h3 className="mb-3 text-base font-semibold text-slate-900">
               打刻明細（氏名順・同一日内は時刻順）
             </h3>
             {monthlyPunches.length === 0 ? (
-              <p className="text-gray-500 text-sm">期間内の打刻はありません</p>
+              <p className="text-sm text-slate-500">期間内の打刻はありません</p>
             ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="max-h-96 space-y-2 overflow-y-auto">
                 {monthlyPunches.map((r) => (
                   <div
                     key={r.id}
-                    className="flex flex-wrap items-center gap-2 py-2 border-b border-gray-100 last:border-0"
+                    className="flex flex-wrap items-center gap-2 border-b border-slate-100 py-2 last:border-0"
                   >
-                    <span className="text-sm text-gray-900 flex-1 min-w-[10rem]">
+                    <span className="min-w-[10rem] flex-1 text-sm text-slate-900">
                       {r.date} {r.employee}
                     </span>
                     <span
@@ -428,7 +436,7 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={() => openEdit(r)}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
                         aria-label="編集"
                       >
                         <Pencil className="w-5 h-5" />
@@ -436,7 +444,7 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(r.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
                         aria-label="削除"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -451,21 +459,21 @@ export default function AdminPage() {
       </div>
 
       {editingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div
-            className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4"
+            className="w-full max-w-md space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl"
             role="dialog"
             aria-labelledby="edit-punch-title"
           >
-            <h2 id="edit-punch-title" className="text-lg font-semibold text-gray-900">
+            <h2 id="edit-punch-title" className="text-lg font-semibold text-slate-900">
               打刻を修正
             </h2>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">氏名</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">氏名</label>
               <select
                 value={editEmployee}
                 onChange={(e) => setEditEmployee(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               >
                 {editEmployeeOptions.map((name) => (
                   <option key={name} value={name}>
@@ -475,11 +483,11 @@ export default function AdminPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">種類</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">種類</label>
               <select
                 value={editType}
                 onChange={(e) => setEditType(e.target.value as PunchType)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               >
                 <option value="clock_in">出勤</option>
                 <option value="clock_out">退勤</option>
@@ -488,21 +496,21 @@ export default function AdminPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">日付</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">日付</label>
               <input
                 type="date"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-1">時刻</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">時刻</label>
               <input
                 type="time"
                 value={editTime}
                 onChange={(e) => setEditTime(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               />
             </div>
             <div className="flex gap-2 justify-end pt-2">

@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+/* 勤怠端末・管理画面ともライト固定（prefers-color-scheme による反転はしない） */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --app-surface: #ffffff;
+  --app-border: rgb(226 232 240 / 0.85);
+  --font-sans: var(--font-noto-sans-jp), ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -10,15 +14,8 @@
   --color-foreground: var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
