@@ -252,60 +252,6 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <section className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/90 p-4">
-            <h2 className="text-base font-semibold text-slate-900">社員マスタ（打刻ボタンの氏名）</h2>
-            <p className="text-xs leading-relaxed text-slate-600">
-              行数が<strong>変わらない</strong>ときだけ、入力の変更が過去の打刻の氏名にも反映されます。
-              行の追加・削除と名前変更を同時にしないでください。
-            </p>
-            <ul className="space-y-2">
-              {employeeDrafts.map((name, index) => (
-                <li key={index} className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) =>
-                      setEmployeeDrafts((d) =>
-                        d.map((x, j) => (j === index ? e.target.value : x))
-                      )
-                    }
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                    placeholder="氏名"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveEmployeeRow(index)}
-                    className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
-                    aria-label="この行を削除"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setEmployeeDrafts((d) => [...d, ""])}
-                className="text-slate-900"
-              >
-                <UserPlus className="w-4 h-4 mr-1" />
-                行を追加
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveEmployeeMaster}
-                className="bg-slate-900 hover:bg-slate-800"
-              >
-                <Save className="w-4 h-4 mr-1" />
-                マスタを保存
-              </Button>
-            </div>
-          </section>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-900">開始日</label>
@@ -455,6 +401,60 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+
+          <section className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/90 p-4">
+            <h2 className="text-base font-semibold text-slate-900">社員マスタ（打刻ボタンの氏名）</h2>
+            <p className="text-xs leading-relaxed text-slate-600">
+              行数が<strong>変わらない</strong>ときだけ、入力の変更が過去の打刻の氏名にも反映されます。
+              行の追加・削除と名前変更を同時にしないでください。
+            </p>
+            <ul className="space-y-2">
+              {employeeDrafts.map((name, index) => (
+                <li key={index} className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) =>
+                      setEmployeeDrafts((d) =>
+                        d.map((x, j) => (j === index ? e.target.value : x))
+                      )
+                    }
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                    placeholder="氏名"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveEmployeeRow(index)}
+                    className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                    aria-label="この行を削除"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEmployeeDrafts((d) => [...d, ""])}
+                className="text-slate-900"
+              >
+                <UserPlus className="w-4 h-4 mr-1" />
+                行を追加
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveEmployeeMaster}
+                className="bg-slate-900 hover:bg-slate-800"
+              >
+                <Save className="w-4 h-4 mr-1" />
+                マスタを保存
+              </Button>
+            </div>
+          </section>
         </div>
       </div>
 
