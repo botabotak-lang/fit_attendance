@@ -252,10 +252,15 @@ export default function Home() {
                 </div>
               )}
               {selectedEmployee && !canClockIn && !canClockOut && (
-                <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center">
+                <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center space-y-2">
                   <p className="text-sm font-medium text-gray-700">
                     本日の出勤・退勤は完了しています
                   </p>
+                  {hasPunchedToday && (
+                    <p className="text-xs text-gray-600 leading-snug">
+                      打刻の追加や時刻の訂正は、<strong>下の「修正・追加」ボタン</strong>から行えます。
+                    </p>
+                  )}
                 </div>
               )}
               <div>
@@ -289,21 +294,22 @@ export default function Home() {
                 )}
               </div>
             </div>
-            {/* 修正ボタン */}
+            {/* 修正・追加（全幅・視認性重視） */}
             {!correctionMode && (
-              <div className="flex flex-col items-center gap-1">
-                <button
+              <div className="border-t border-gray-200 pt-4 space-y-2">
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setCorrectionMode(true)}
                   disabled={!selectedEmployee || !hasPunchedToday}
-                  className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                  className="w-full min-h-14 text-base font-semibold border-2 border-indigo-500 text-indigo-900 bg-indigo-50/60 hover:bg-indigo-100 hover:border-indigo-600 disabled:opacity-45 disabled:hover:bg-indigo-50/60"
                 >
-                  <Pencil className="w-4 h-4" />
-                  修正・追加
-                </button>
+                  <Pencil className="w-5 h-5 shrink-0" />
+                  修正・追加（時刻の訂正・打刻の追加）
+                </Button>
                 {selectedEmployee && !hasPunchedToday && (
-                  <p className="text-xs text-gray-500 text-center">
-                    本日の打刻がある場合のみ修正できます（先に打刻してください）
+                  <p className="text-xs text-gray-600 text-center">
+                    本日の打刻がある場合のみ利用できます（先に出勤などの打刻をしてください）
                   </p>
                 )}
               </div>

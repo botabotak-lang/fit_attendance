@@ -93,23 +93,6 @@ function timeToMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
-function minutesToHHmm(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function isMoritaRoundingEmployee(name: string): boolean {
-  return name === "森田" || name === "森田仁美";
-}
-
-/** 始業: 10分単位四捨五入、終業: 15分単位切り捨て */
-function applyMoritaRounding(inMin: number, outMin: number): { inMin: number; outMin: number } {
-  const inR = Math.round(inMin / 10) * 10;
-  const outR = Math.floor(outMin / 15) * 15;
-  return { inMin: inR, outMin: outR };
-}
-
 export function buildDayCellForEmployee(
   records: PunchRecord[],
   date: string,
@@ -132,24 +115,10 @@ export function buildDayCellForEmployee(
   const outT = outs[outs.length - 1].timestamp.slice(11, 16);
   const rawInMin = timeToMinutes(inT);
   const rawOutMin = timeToMinutes(outT);
-
-  let displayIn: string;
-  let displayOut: string;
-  let boundaryIn: number;
-  let boundaryOut: number;
-
-  if (isMoritaRoundingEmployee(employee)) {
-    const r = applyMoritaRounding(rawInMin, rawOutMin);
-    boundaryIn = r.inMin;
-    boundaryOut = r.outMin;
-    displayIn = minutesToHHmm(boundaryIn);
-    displayOut = minutesToHHmm(boundaryOut);
-  } else {
-    boundaryIn = rawInMin;
-    boundaryOut = rawOutMin;
-    displayIn = inT;
-    displayOut = outT;
-  }
+  const boundaryIn = rawInMin;
+  const boundaryOut = rawOutMin;
+  const displayIn = inT;
+  const displayOut = outT;
 
   let gross = boundaryOut - boundaryIn;
   if (gross <= 0) {
@@ -275,11 +244,6 @@ export function buildWorkStatusWorkbook(opts: WorkStatusExportOptions): XLSX.Wor
   rateRow[totalCols - 4] = Number((fTotal / 60).toFixed(2));
   rateRow[totalCols - 2] = Number((mTotal / 60).toFixed(2));
   rows.push(rateRow);
-
-  const noteRow: (string | number)[] = Array(totalCols).fill("");
-  noteRow[1] =
-    "※ 氏名が「森田」「森田仁美」の場合：出勤・退勤の表示および勤務時間は、始業＝１０分単位（四捨五入）／終業＝１５分単位（切り捨て）で算出しています。";
-  rows.push(noteRow);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws["!cols"] = Array(totalCols)
