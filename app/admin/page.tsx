@@ -11,13 +11,16 @@ import {
   Save,
   Pencil,
 } from "lucide-react";
-import { PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
+import { PunchRecord, PunchType } from "@/lib/types";
 import { getMonthlyDetail, getSummaryFromDetail } from "@/lib/attendance";
 import {
-  getEmployees,
-  saveEmployees,
-  applyEmployeeListRenames,
-} from "@/lib/employees";
+  deletePunchRecord,
+  fetchEmployees,
+  fetchPunchRecords,
+  saveEmployeesMaster,
+  updatePunchRecord,
+} from "@/lib/attendanceClient";
+import { tryMigrateFromLocalStorageOnce } from "@/lib/migrateLocalStorage";
 import {
   getClosingPeriod,
   getClosingPeriodContainingDate,
@@ -31,16 +34,6 @@ function getTodayDateStr() {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function getRecords(): PunchRecord[] {
-  if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function saveRecords(records: PunchRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
 function getTypeLabel(type: PunchRecord["type"]) {
@@ -90,10 +83,25 @@ export default function AdminPage() {
   const [editTime, setEditTime] = useState("09:00");
 
   useEffect(() => {
-    setRecords(getRecords());
-    const names = getEmployees();
-    setSavedEmployeeList(names);
-    setEmployeeDrafts([...names]);
+    void (async () => {
+      await tryMigrateFromLocalStorageOnce();
+      try {
+        const [list, names] = await Promise.all([
+          fetchPunchRecords(),
+          fetchEmployees(),
+        ]);
+        setRecords(list);
+        setSavedEmployeeList(names);
+        setEmployeeDrafts([...names]);
+      } catch (e) {
+        console.error(e);
+        alert(
+          e instanceof Error
+            ? e.message
+            : "データの読み込みに失敗しました。Supabase の環境変数を確認してください。"
+        );
+      }
+    })();
   }, []);
 
   const monthlyPunches = useMemo(() => {
@@ -127,7 +135,7 @@ export default function AdminPage() {
     return countWeekdaysInRange(workStatusPeriod.start, workStatusPeriod.end);
   }, [workStatusPeriod]);
 
-  const handleSaveEmployeeMaster = () => {
+  const handleSaveEmployeeMaster = async () => {
     const cleaned = employeeDrafts.map((s) => s.trim()).filter(Boolean);
     if (cleaned.length === 0) {
       alert("氏名を1名以上入力してください。");
@@ -138,20 +146,24 @@ export default function AdminPage() {
       return;
     }
     const prev = savedEmployeeList;
-    if (prev.length === cleaned.length) {
-      applyEmployeeListRenames(prev, cleaned);
+    try {
+      await saveEmployeesMaster(
+        cleaned,
+        prev.length === cleaned.length ? prev : undefined
+      );
+      setSavedEmployeeList(cleaned);
+      setEmployeeDrafts([...cleaned]);
+      setRecords(await fetchPunchRecords());
+      alert("社員マスタを保存しました。打刻画面にも反映されます。");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "保存に失敗しました。");
     }
-    saveEmployees(cleaned);
-    setSavedEmployeeList(cleaned);
-    setEmployeeDrafts([...cleaned]);
-    setRecords(getRecords());
-    alert("社員マスタを保存しました。打刻画面にも反映されます。");
   };
 
   const handleRemoveEmployeeRow = (index: number) => {
     if (
       !confirm(
-        "この行をマスタから外しますか？\n過去の打刻データは端末に残りますが、月次の氏名別の行には表示されなくなります。"
+        "この行をマスタから外しますか？\n過去の打刻データはクラウドに残りますが、月次の氏名別の行には表示されなくなります。"
       )
     ) {
       return;
@@ -159,12 +171,15 @@ export default function AdminPage() {
     setEmployeeDrafts((d) => d.filter((_, j) => j !== index));
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("この打刻を削除しますか？")) return;
-    const next = getRecords().filter((r) => r.id !== id);
-    saveRecords(next);
-    setRecords(next);
-    if (editingRecord?.id === id) setEditingRecord(null);
+    try {
+      await deletePunchRecord(id);
+      setRecords(await fetchPunchRecords());
+      if (editingRecord?.id === id) setEditingRecord(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "削除に失敗しました。");
+    }
   };
 
   const openEdit = (r: PunchRecord) => {
@@ -183,7 +198,7 @@ export default function AdminPage() {
     return savedEmployeeList;
   }, [savedEmployeeList, editingRecord]);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingRecord) return;
     const emp = editEmployee.trim();
     if (!emp) {
@@ -195,20 +210,20 @@ export default function AdminPage() {
       return;
     }
     const ts = `${editDate}T${editTime}:00`;
-    const next = getRecords().map((r) =>
-      r.id === editingRecord.id
-        ? {
-            ...r,
-            employee: emp,
-            type: editType,
-            date: editDate,
-            timestamp: ts,
-          }
-        : r
-    );
-    saveRecords(next);
-    setRecords(next);
-    setEditingRecord(null);
+    const updated: PunchRecord = {
+      ...editingRecord,
+      employee: emp,
+      type: editType,
+      date: editDate,
+      timestamp: ts,
+    };
+    try {
+      await updatePunchRecord(updated);
+      setRecords(await fetchPunchRecords());
+      setEditingRecord(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "保存に失敗しました。");
+    }
   };
 
   const handleWorkStatusExport = () => {
@@ -218,7 +233,7 @@ export default function AdminPage() {
     }
     try {
       const wb = buildWorkStatusWorkbook({
-        records: getRecords(),
+        records,
         employees: savedEmployeeList,
         closingEndMonth,
         requiredDaysOverride,

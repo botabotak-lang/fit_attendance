@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Clock, List, LogOut, LogIn, DoorOpen, DoorClosed, Pencil } from "lucide-react";
-import { PunchRecord, PunchType, STORAGE_KEY } from "@/lib/types";
+import { PunchRecord, PunchType } from "@/lib/types";
+import { EMPLOYEES_CHANGED_EVENT, EMPLOYEES_STORAGE_KEY } from "@/lib/employees";
 import {
-  getEmployees,
-  EMPLOYEES_CHANGED_EVENT,
-  EMPLOYEES_STORAGE_KEY,
-} from "@/lib/employees";
+  addPunchRecord,
+  fetchEmployees,
+  fetchPunchRecords,
+} from "@/lib/attendanceClient";
+import { tryMigrateFromLocalStorageOnce } from "@/lib/migrateLocalStorage";
 
 type Tab = "punch" | "today";
 const TOAST_DURATION_MS = 2500;
@@ -17,16 +19,6 @@ function getTodayDateStr() {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function getRecords(): PunchRecord[] {
-  if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function saveRecords(records: PunchRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
 export default function Home() {
@@ -41,36 +33,65 @@ export default function Home() {
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   });
-  const loadRecords = () => setRecords(getRecords());
-  const loadEmployees = () => setEmployees(getEmployees());
+  const loadRecords = async () => {
+    try {
+      setRecords(await fetchPunchRecords());
+    } catch (e) {
+      console.error(e);
+      alert(
+        e instanceof Error
+          ? e.message
+          : "打刻データの取得に失敗しました。Supabase の環境変数を確認してください。"
+      );
+    }
+  };
+  const loadEmployees = async () => {
+    try {
+      const list = await fetchEmployees();
+      setEmployees(list);
+      setSelectedEmployee((cur) => (cur && list.includes(cur) ? cur : ""));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
-    loadEmployees();
-    loadRecords();
+    void (async () => {
+      await tryMigrateFromLocalStorageOnce();
+      await loadEmployees();
+      await loadRecords();
+    })();
   }, []);
 
   useEffect(() => {
-    loadRecords();
+    startTransition(() => {
+      void loadRecords();
+    });
   }, [activeTab]);
 
   useEffect(() => {
     const onEmployeesChanged = () => {
-      loadEmployees();
-      if (typeof window === "undefined") return;
-      const list = getEmployees();
-      setSelectedEmployee((cur) => (cur && list.includes(cur) ? cur : ""));
+      void loadEmployees();
     };
     window.addEventListener(EMPLOYEES_CHANGED_EVENT, onEmployeesChanged);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === EMPLOYEES_STORAGE_KEY) onEmployeesChanged();
+      if (e.key === EMPLOYEES_STORAGE_KEY) void loadEmployees();
     };
     window.addEventListener("storage", onStorage);
-    const onFocus = () => loadEmployees();
+    const onFocus = () => {
+      void loadEmployees();
+      void loadRecords();
+    };
     window.addEventListener("focus", onFocus);
+    const interval = window.setInterval(() => {
+      void loadEmployees();
+      void loadRecords();
+    }, 60_000);
     return () => {
       window.removeEventListener(EMPLOYEES_CHANGED_EVENT, onEmployeesChanged);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -85,14 +106,16 @@ export default function Home() {
     const has =
       !!selectedEmployee &&
       records.some((r) => r.date === todayStr && r.employee === selectedEmployee);
-    if (correctionMode && !has) setCorrectionMode(false);
+    if (correctionMode && !has) {
+      startTransition(() => setCorrectionMode(false));
+    }
   }, [correctionMode, selectedEmployee, records]);
 
-  const handlePunch = (type: PunchType, useCorrection = false) => {
+  const handlePunch = async (type: PunchType, useCorrection = false) => {
     if (!selectedEmployee || !employees.includes(selectedEmployee) || toastMessage) return;
     if (useCorrection) {
       const todayStr = getTodayDateStr();
-      const hasAnyToday = getRecords().some(
+      const hasAnyToday = records.some(
         (r) => r.date === todayStr && r.employee === selectedEmployee
       );
       if (!hasAnyToday) return;
@@ -117,9 +140,13 @@ export default function Home() {
       timestamp,
       date: dateStr,
     };
-    const next = [...getRecords(), record];
-    saveRecords(next);
-    setRecords(next);
+    try {
+      await addPunchRecord(record);
+      await loadRecords();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "打刻の保存に失敗しました。");
+      return;
+    }
     const corrLabel = useCorrection ? "（修正）" : "";
     const msg =
       type === "clock_in"
