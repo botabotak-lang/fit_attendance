@@ -95,14 +95,14 @@ export type SummaryRow = {
   emp: string;
   days: number;
   hours: number;
-  /** max(0, 要出勤日数 − 出勤日数)。要出勤は呼び出し元の有効値 */
-  shortage: number;
+  /** 要出勤が確定しているときのみ max(0, 要出勤 − 出勤)。未確定は null */
+  shortage: number | null;
 };
 
 export function getSummaryFromDetail(
   detail: MonthlyDetailRow[],
   employeeList: string[],
-  effectiveRequiredDays: number
+  effectiveRequiredDays: number | null
 ): SummaryRow[] {
   const result: SummaryRow[] = [];
   employeeList.forEach((emp) => {
@@ -114,7 +114,10 @@ export function getSummaryFromDetail(
         totalHours += parseFloat(d.勤務時間.replace("h", ""));
       }
     });
-    const shortage = Math.max(0, effectiveRequiredDays - days);
+    const shortage =
+      effectiveRequiredDays === null
+        ? null
+        : Math.max(0, effectiveRequiredDays - days);
     result.push({ emp, days, hours: totalHours, shortage });
   });
   return result;

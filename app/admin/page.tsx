@@ -79,6 +79,8 @@ export default function AdminPage() {
   const [periodManualOpen, setPeriodManualOpen] = useState(false);
   const [isCustomPeriod, setIsCustomPeriod] = useState(false);
   const [requiredDaysOverride, setRequiredDaysOverride] = useState("");
+  /** 確定後のみ不足日数を計算する（期間変更でリセット） */
+  const [committedRequiredDays, setCommittedRequiredDays] = useState<number | null>(null);
   const [editingRecord, setEditingRecord] = useState<PunchRecord | null>(null);
   const [editEmployee, setEditEmployee] = useState("");
   const [editType, setEditType] = useState<PunchType>("clock_in");
@@ -107,6 +109,10 @@ export default function AdminPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    setCommittedRequiredDays(null);
+  }, [monthStart, monthEnd]);
+
   const monthlyPunches = useMemo(() => {
     return records
       .filter((r) => r.date >= monthStart && r.date <= monthEnd)
@@ -129,20 +135,25 @@ export default function AdminPage() {
     return countWeekdaysInRange(monthStart, monthEnd);
   }, [monthStart, monthEnd]);
 
-  const effectiveRequiredDays = useMemo(() => {
-    const t = requiredDaysOverride.trim();
-    if (t !== "") {
-      const n = parseInt(t, 10);
-      if (!Number.isNaN(n) && n >= 0) return n;
-    }
-    return suggestedRequiredDays ?? 0;
-  }, [requiredDaysOverride, suggestedRequiredDays]);
-
   const summary = useMemo(
     () =>
-      getSummaryFromDetail(detail, savedEmployeeList, effectiveRequiredDays),
-    [detail, savedEmployeeList, effectiveRequiredDays]
+      getSummaryFromDetail(detail, savedEmployeeList, committedRequiredDays),
+    [detail, savedEmployeeList, committedRequiredDays]
   );
+
+  const handleConfirmRequiredDays = () => {
+    const t = requiredDaysOverride.trim();
+    if (t === "") {
+      alert("要出勤日数を入力してから確定してください。");
+      return;
+    }
+    const n = parseInt(t, 10);
+    if (Number.isNaN(n) || n < 0) {
+      alert("0以上の整数を入力してください。");
+      return;
+    }
+    setCommittedRequiredDays(n);
+  };
 
   const handleClosingEndMonthChange = (ym: string) => {
     setClosingEndMonth(ym);
@@ -251,12 +262,16 @@ export default function AdminPage() {
       alert("社員マスタに氏名がありません。先にマスタを保存してください。");
       return;
     }
+    if (committedRequiredDays === null) {
+      alert("Excel出力の前に、要出勤日数を入力して「確定」を押してください。");
+      return;
+    }
     try {
       const wb = buildWorkStatusWorkbook({
         records,
         employees: savedEmployeeList,
         closingEndMonth,
-        requiredDaysOverride,
+        requiredDaysOverride: String(committedRequiredDays),
         ...(isCustomPeriod
           ? { periodRangeOverride: { start: monthStart, end: monthEnd } }
           : {}),
@@ -308,7 +323,7 @@ export default function AdminPage() {
                 {suggestedRequiredDays != null && (
                   <span className="text-slate-600">
                     {" "}
-                    ／ 提案の要出勤日数（平日）：{suggestedRequiredDays}日
+                    ／ 参考（平日のみ）：{suggestedRequiredDays}日（土曜出勤は含みません）
                   </span>
                 )}
               </p>
@@ -318,23 +333,40 @@ export default function AdminPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-900">
-                要出勤日数（空欄＝提案どおり）
+                要出勤日数（入力後に「確定」）
               </label>
-              <input
-                type="number"
-                min={0}
-                step={1}
-                value={requiredDaysOverride}
-                onChange={(e) => setRequiredDaysOverride(e.target.value)}
-                placeholder={
-                  suggestedRequiredDays != null
-                    ? `未入力時は ${suggestedRequiredDays} 日`
-                    : "平日の提案値を使用"
-                }
-                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              />
+              <div className="flex max-w-md flex-wrap items-stretch gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={requiredDaysOverride}
+                  onChange={(e) => setRequiredDaysOverride(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleConfirmRequiredDays();
+                    }
+                  }}
+                  placeholder="例: 22"
+                  className="min-w-[8rem] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 border-slate-300"
+                  onClick={handleConfirmRequiredDays}
+                >
+                  確定
+                </Button>
+              </div>
+              {committedRequiredDays !== null && (
+                <p className="mt-2 text-sm font-medium text-slate-800">
+                  要出勤の基準: {committedRequiredDays}日（確定済み）
+                </p>
+              )}
               <p className="mt-1 text-xs text-slate-500">
-                集計の「不足日数」は「有効な要出勤日数 − 出勤日数」（下限0）です。有効な要出勤は、上の数値が入っていればその値、空欄なら提案の平日数です。
+                「不足日数」は、上記を確定したあとだけ「要出勤 − 出勤日数」（下限0）で計算します。対象期間を変えると要出勤の確定は解除されます。
               </p>
             </div>
 
@@ -403,7 +435,9 @@ export default function AdminPage() {
                   <tr key={s.emp} className="border-t border-slate-100">
                     <td className="px-4 py-2 font-medium text-slate-900">{s.emp}</td>
                     <td className="px-4 py-2 text-right text-slate-900">{s.days}日</td>
-                    <td className="px-4 py-2 text-right text-slate-900">{s.shortage}日</td>
+                    <td className="px-4 py-2 text-right text-slate-900">
+                      {s.shortage === null ? "—" : `${s.shortage}日`}
+                    </td>
                     <td className="px-4 py-2 text-right text-slate-900">
                       {s.hours.toFixed(1)}h
                     </td>
@@ -415,7 +449,7 @@ export default function AdminPage() {
 
           <div className="space-y-2">
             <p className="text-xs leading-relaxed text-slate-600">
-              勤務状況一覧のExcelは、上で選んだ締め終了月・要出勤日数・対象期間（手動変更時はその期間）をそのまま使います。社員列はマスタの上から順です。
+              勤務状況一覧のExcelは、確定済みの要出勤日数・締め終了月・対象期間（手動変更時はその期間）を使います。社員列はマスタの上から順です。
             </p>
             <Button
               type="button"
