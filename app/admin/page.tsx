@@ -10,6 +10,8 @@ import {
   UserPlus,
   Save,
   Pencil,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { AppBrandLogo } from "@/components/AppBrandLogo";
 import { PunchRecord, PunchType } from "@/lib/types";
@@ -24,7 +26,6 @@ import {
 import { tryMigrateFromLocalStorageOnce } from "@/lib/migrateLocalStorage";
 import {
   getClosingPeriod,
-  getClosingPeriodContainingDate,
   countWeekdaysInRange,
   buildWorkStatusWorkbook,
   workStatusFileName,
@@ -61,21 +62,22 @@ export default function AdminPage() {
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [savedEmployeeList, setSavedEmployeeList] = useState<string[]>([]);
   const [employeeDrafts, setEmployeeDrafts] = useState<string[]>([]);
-  const [monthStart, setMonthStart] = useState(() => {
-    const p = getClosingPeriodContainingDate(getTodayDateStr());
-    if (p) return p.start;
-    const d = new Date();
-    d.setDate(1);
-    return d.toISOString().slice(0, 10);
-  });
-  const [monthEnd, setMonthEnd] = useState(() => {
-    const p = getClosingPeriodContainingDate(getTodayDateStr());
-    return p?.end ?? getTodayDateStr();
-  });
   const [closingEndMonth, setClosingEndMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [monthStart, setMonthStart] = useState(() => {
+    const d = new Date();
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return getClosingPeriod(ym)?.start ?? getTodayDateStr();
+  });
+  const [monthEnd, setMonthEnd] = useState(() => {
+    const d = new Date();
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return getClosingPeriod(ym)?.end ?? getTodayDateStr();
+  });
+  const [periodManualOpen, setPeriodManualOpen] = useState(false);
+  const [isCustomPeriod, setIsCustomPeriod] = useState(false);
   const [requiredDaysOverride, setRequiredDaysOverride] = useState("");
   const [editingRecord, setEditingRecord] = useState<PunchRecord | null>(null);
   const [editEmployee, setEditEmployee] = useState("");
@@ -122,19 +124,36 @@ export default function AdminPage() {
       getMonthlyDetail(records, monthStart, monthEnd, savedEmployeeList),
     [records, monthStart, monthEnd, savedEmployeeList]
   );
+  const suggestedRequiredDays = useMemo(() => {
+    if (!monthStart || !monthEnd || monthStart > monthEnd) return null;
+    return countWeekdaysInRange(monthStart, monthEnd);
+  }, [monthStart, monthEnd]);
+
+  const effectiveRequiredDays = useMemo(() => {
+    const t = requiredDaysOverride.trim();
+    if (t !== "") {
+      const n = parseInt(t, 10);
+      if (!Number.isNaN(n) && n >= 0) return n;
+    }
+    return suggestedRequiredDays ?? 0;
+  }, [requiredDaysOverride, suggestedRequiredDays]);
+
   const summary = useMemo(
-    () => getSummaryFromDetail(detail, savedEmployeeList),
-    [detail, savedEmployeeList]
+    () =>
+      getSummaryFromDetail(detail, savedEmployeeList, effectiveRequiredDays),
+    [detail, savedEmployeeList, effectiveRequiredDays]
   );
 
-  const workStatusPeriod = useMemo(
-    () => getClosingPeriod(closingEndMonth),
-    [closingEndMonth]
-  );
-  const suggestedRequiredDays = useMemo(() => {
-    if (!workStatusPeriod) return null;
-    return countWeekdaysInRange(workStatusPeriod.start, workStatusPeriod.end);
-  }, [workStatusPeriod]);
+  const handleClosingEndMonthChange = (ym: string) => {
+    setClosingEndMonth(ym);
+    const p = getClosingPeriod(ym);
+    if (p) {
+      setMonthStart(p.start);
+      setMonthEnd(p.end);
+    }
+    setIsCustomPeriod(false);
+    setPeriodManualOpen(false);
+  };
 
   const handleSaveEmployeeMaster = async () => {
     const cleaned = employeeDrafts.map((s) => s.trim()).filter(Boolean);
@@ -238,6 +257,9 @@ export default function AdminPage() {
         employees: savedEmployeeList,
         closingEndMonth,
         requiredDaysOverride,
+        ...(isCustomPeriod
+          ? { periodRangeOverride: { start: monthStart, end: monthEnd } }
+          : {}),
       });
       XLSX.writeFile(wb, workStatusFileName(closingEndMonth));
     } catch (e) {
@@ -266,26 +288,105 @@ export default function AdminPage() {
         </header>
 
         <div className="space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-          <div className="grid grid-cols-2 gap-4">
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold text-slate-900">集計の前提</h2>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-900">開始日</label>
+              <label className="mb-1 block text-sm font-medium text-slate-900">
+                締めの終了月（例：4月→3/21〜4/20）
+              </label>
               <input
-                type="date"
-                value={monthStart}
-                onChange={(e) => setMonthStart(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                type="month"
+                value={closingEndMonth}
+                onChange={(e) => handleClosingEndMonthChange(e.target.value)}
+                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-900">終了日</label>
-              <input
-                type="date"
-                value={monthEnd}
-                onChange={(e) => setMonthEnd(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-              />
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-800">
+              <p className="font-medium text-slate-900">対象期間</p>
+              <p className="mt-1">
+                {monthStart} 〜 {monthEnd}
+                {suggestedRequiredDays != null && (
+                  <span className="text-slate-600">
+                    {" "}
+                    ／ 提案の要出勤日数（平日）：{suggestedRequiredDays}日
+                  </span>
+                )}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                締めは毎月20日です。上記の対象期間で集計表・打刻明細・Excel を揃えています。
+              </p>
             </div>
-          </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-900">
+                要出勤日数（空欄＝提案どおり）
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={requiredDaysOverride}
+                onChange={(e) => setRequiredDaysOverride(e.target.value)}
+                placeholder={
+                  suggestedRequiredDays != null
+                    ? `未入力時は ${suggestedRequiredDays} 日`
+                    : "平日の提案値を使用"
+                }
+                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                集計の「不足日数」は「有効な要出勤日数 − 出勤日数」（下限0）です。有効な要出勤は、上の数値が入っていればその値、空欄なら提案の平日数です。
+              </p>
+            </div>
+
+            <div className="border-t border-slate-200 pt-3">
+              <button
+                type="button"
+                onClick={() => setPeriodManualOpen((o) => !o)}
+                className="flex w-full items-center gap-2 text-left text-sm font-medium text-slate-700 hover:text-slate-900"
+              >
+                {periodManualOpen ? (
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0" />
+                )}
+                期間を手動で変更する（通常は不要）
+              </button>
+              {periodManualOpen && (
+                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-900">開始日</label>
+                    <input
+                      type="date"
+                      value={monthStart}
+                      onChange={(e) => {
+                        setMonthStart(e.target.value);
+                        setIsCustomPeriod(true);
+                      }}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-900">終了日</label>
+                    <input
+                      type="date"
+                      value={monthEnd}
+                      onChange={(e) => {
+                        setMonthEnd(e.target.value);
+                        setIsCustomPeriod(true);
+                      }}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {isCustomPeriod && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-900">
+              カスタム期間を使用中（締め終了月を変えると締め期間に戻ります）
+            </div>
+          )}
 
           <div className="overflow-hidden rounded-xl border border-slate-200/80">
             <table className="w-full text-sm">
@@ -293,7 +394,7 @@ export default function AdminPage() {
                 <tr>
                   <th className="px-4 py-2 text-left text-slate-900">氏名</th>
                   <th className="px-4 py-2 text-right text-slate-900">出勤日数</th>
-                  <th className="px-4 py-2 text-right text-slate-900">休暇日数</th>
+                  <th className="px-4 py-2 text-right text-slate-900">不足日数</th>
                   <th className="px-4 py-2 text-right text-slate-900">総勤務時間</th>
                 </tr>
               </thead>
@@ -302,7 +403,7 @@ export default function AdminPage() {
                   <tr key={s.emp} className="border-t border-slate-100">
                     <td className="px-4 py-2 font-medium text-slate-900">{s.emp}</td>
                     <td className="px-4 py-2 text-right text-slate-900">{s.days}日</td>
-                    <td className="px-4 py-2 text-right text-slate-500">{s.leaveDays}日</td>
+                    <td className="px-4 py-2 text-right text-slate-900">{s.shortage}日</td>
                     <td className="px-4 py-2 text-right text-slate-900">
                       {s.hours.toFixed(1)}h
                     </td>
@@ -312,64 +413,19 @@ export default function AdminPage() {
             </table>
           </div>
 
-          <section className="space-y-3 rounded-xl border border-slate-200/80 bg-amber-50/50 p-4">
-            <h2 className="text-base font-semibold text-slate-900">
-              勤務状況一覧（社長用・各月20日締め）
-            </h2>
+          <div className="space-y-2">
             <p className="text-xs leading-relaxed text-slate-600">
-              <strong>締め日は毎月20日</strong>です。終了月を選ぶと、
-              <strong>前月21日〜当該月20日</strong>の期間で一覧を出力します。社員列は
-              <strong>マスタの上から順</strong>です（6名を超える場合は2枚目シートに7人目以降）。要出勤日数は
-              平日数を提案し、空欄のままならそれを採用／数値を入れると上書きします。
+              勤務状況一覧のExcelは、上で選んだ締め終了月・要出勤日数・対象期間（手動変更時はその期間）をそのまま使います。社員列はマスタの上から順です。
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-900">
-                  締めの終了月（例：4月→3/21〜4/20）
-                </label>
-                <input
-                  type="month"
-                  value={closingEndMonth}
-                  onChange={(e) => setClosingEndMonth(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                />
-                {workStatusPeriod && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    期間：{workStatusPeriod.start} 〜 {workStatusPeriod.end}
-                    {suggestedRequiredDays != null && (
-                      <> ／ 提案の要出勤日数（平日）：{suggestedRequiredDays}日</>
-                    )}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-900">
-                  要出勤日数（空欄＝提案どおり）
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={requiredDaysOverride}
-                  onChange={(e) => setRequiredDaysOverride(e.target.value)}
-                  placeholder={
-                    suggestedRequiredDays != null
-                      ? `未入力時は ${suggestedRequiredDays} 日`
-                      : "平日の提案値を使用"
-                  }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
-                />
-              </div>
-            </div>
             <Button
               type="button"
               onClick={handleWorkStatusExport}
-              className="w-full bg-amber-700 hover:bg-amber-800 text-white"
+              className="w-full bg-amber-700 text-white hover:bg-amber-800"
             >
-              <FileSpreadsheet className="w-5 h-5 mr-2" />
+              <FileSpreadsheet className="mr-2 h-5 w-5" />
               勤務状況一覧をExcel出力
             </Button>
-          </section>
+          </div>
 
           <div>
             <h3 className="mb-3 text-base font-semibold text-slate-900">

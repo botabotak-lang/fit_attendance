@@ -91,24 +91,31 @@ export function getMonthlyDetail(
   return rows;
 }
 
-export type SummaryRow = { emp: string; days: number; leaveDays: number; hours: number };
+export type SummaryRow = {
+  emp: string;
+  days: number;
+  hours: number;
+  /** max(0, 要出勤日数 − 出勤日数)。要出勤は呼び出し元の有効値 */
+  shortage: number;
+};
 
 export function getSummaryFromDetail(
   detail: MonthlyDetailRow[],
-  employeeList: string[]
+  employeeList: string[],
+  effectiveRequiredDays: number
 ): SummaryRow[] {
   const result: SummaryRow[] = [];
   employeeList.forEach((emp) => {
     const empDetails = detail.filter((d) => d.氏名 === emp);
     const days = empDetails.filter((d) => d.出勤 !== "-").length;
-    const leaveDays = empDetails.filter((d) => d.勤務時間 === "休暇").length;
     let totalHours = 0;
     empDetails.forEach((d) => {
       if (d.勤務時間 !== "-" && d.勤務時間 !== "休暇") {
         totalHours += parseFloat(d.勤務時間.replace("h", ""));
       }
     });
-    result.push({ emp, days, leaveDays, hours: totalHours });
+    const shortage = Math.max(0, effectiveRequiredDays - days);
+    result.push({ emp, days, hours: totalHours, shortage });
   });
   return result;
 }

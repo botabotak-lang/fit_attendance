@@ -145,10 +145,18 @@ export type WorkStatusExportOptions = {
   closingEndMonth: string;
   /** 空欄時は平日数を自動 */
   requiredDaysOverride: string;
+  /** 指定時は締め月から算出した期間の代わりに、この範囲でシートを生成（管理画面のカスタム期間と一致） */
+  periodRangeOverride?: { start: string; end: string };
 };
 
 export function buildWorkStatusWorkbook(opts: WorkStatusExportOptions): XLSX.WorkBook {
-  const period = getClosingPeriod(opts.closingEndMonth);
+  const fromClosing = getClosingPeriod(opts.closingEndMonth);
+  const period =
+    opts.periodRangeOverride?.start &&
+    opts.periodRangeOverride?.end &&
+    opts.periodRangeOverride.start <= opts.periodRangeOverride.end
+      ? opts.periodRangeOverride
+      : fromClosing;
   if (!period) throw new Error("締め月の形式が不正です（YYYY-MM）");
 
   const dates = enumerateDatesInclusive(period.start, period.end);
