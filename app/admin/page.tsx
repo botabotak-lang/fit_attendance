@@ -38,6 +38,15 @@ function getTodayDateStr() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function getDefaultClosingYM(): string {
+  const d = new Date();
+  if (d.getDate() > 20) {
+    const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function getTypeLabel(type: PunchRecord["type"]) {
   switch (type) {
     case "clock_in": return "出勤";
@@ -62,18 +71,13 @@ export default function AdminPage() {
   const [records, setRecords] = useState<PunchRecord[]>([]);
   const [savedEmployeeList, setSavedEmployeeList] = useState<string[]>([]);
   const [employeeDrafts, setEmployeeDrafts] = useState<string[]>([]);
-  const [closingEndMonth, setClosingEndMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [closingEndMonth, setClosingEndMonth] = useState(getDefaultClosingYM);
   const [monthStart, setMonthStart] = useState(() => {
-    const d = new Date();
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const ym = getDefaultClosingYM();
     return getClosingPeriod(ym)?.start ?? getTodayDateStr();
   });
   const [monthEnd, setMonthEnd] = useState(() => {
-    const d = new Date();
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const ym = getDefaultClosingYM();
     return getClosingPeriod(ym)?.end ?? getTodayDateStr();
   });
   const [periodManualOpen, setPeriodManualOpen] = useState(false);
